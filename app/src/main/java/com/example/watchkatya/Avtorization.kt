@@ -1,8 +1,11 @@
 package com.example.watchkatya
 
 import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
 import android.support.wearable.activity.WearableActivity
+import android.widget.Button
+import android.widget.EditText
 import android.widget.Toast
 import org.json.JSONObject
 import java.lang.Exception
@@ -14,56 +17,52 @@ private lateinit var app: App
         setContentView(R.layout.activity_avtorization)
         app = applicationContext as App
 
-        // Enables Always-on
-        setAmbientEnabled()
+        val loginText = findViewById<EditText>(R.id.login)
+        val passwordText = findViewById<EditText>(R.id.password)
+        val loginButton = findViewById<Button>(R.id.login_button)
+        val logoutButton = findViewById<Button>(R.id.logout_button)
 
-        val onLoginResponce: (login: String, password: String) -> Unit = {login, password ->
-            app.username = login
-            val json = JSONObject()
-            json.put("username", login)
-            json.put("password", password)
-            HTTP.requestPOST(
-                "http://s4a.kolei.ru/login",
-                json,
-                mapOf(
-                    "Content-Type" to "application/json")
-            )
-            {result, error ->
-            if (result!=null){
-                try{
-                    val jsonResp = JSONObject(result)
-                    if (!jsonResp.has("notice"))
-                        throw Exception("Не верный формат ответа, ожидался объект notice ")
-                    if (jsonResp.getJSONObject("notice").has("answer"))
-                        throw Exception(jsonResp.getJSONObject("notice").getString("answer"))
-                    if (jsonResp.getJSONObject("notice").has("token")){
-                        app.token = jsonResp.getJSONObject("notice").getString("token")
-                        runOnUiThread{
-                            Toast.makeText(this, "Success get token: $app.token", Toast.LENGTH_LONG)
-                                .show()
-                        }
-                    }
-                    else
-                        throw Exception("Не верный формат ответа, ожидался объект token")
-                } catch (e: Exception){
-                    runOnUiThread {
-                        AlertDialog.Builder(this)
-                            .setTitle("Ошибка")
-                            .setMessage(e.message)
-                            .setPositiveButton("OK", null)
-                            .create()
-                            .show()
-                }
+
+        loginButton.setOnClickListener {
+            if(loginText.text!!.isNotEmpty() && passwordText.text!!.isNotEmpty())
+            {
+                app.loginText = loginText.text.toString()
+                app.passwordText = passwordText.text.toString()
+                startActivity(Intent(this, MainActivity::class.java))
             }
-                
-            }
-                else runOnUiThread {
+            else
                 AlertDialog.Builder(this)
-                    .setTitle("Ошибка http-запроса")
-                    .setMessage(error)
+                    .setTitle("Ошибка")
+                    .setMessage("Должны быть введены логин и пароль")
                     .setPositiveButton("OK", null)
                     .create()
                     .show()
+        }
+        logoutButton.setOnClickListener {
+            HTTP.requestPOST(
+                "http://s4a.kolei.ru/logout",
+                JSONObject().put("username", app.username),
+                mapOf(
+                    "Content-Type" to "application/json"
+                )
+            ) { result, error ->
+                // при выходе не забываем стереть существующий токен
+                app.token = ""
+
+                // каких-то осмысленных действий дальше не предполагается
+                // разве что снова вызвать форму авторизации
+                runOnUiThread {
+                    if (result != null) {
+                        Toast.makeText(this, "Logout success!", Toast.LENGTH_LONG).show()
+                    } else {
+                        androidx.appcompat.app.AlertDialog.Builder(this)
+                            .setTitle("Ошибка http-запроса")
+                            .setMessage(error)
+                            .setPositiveButton("OK", null)
+                            .create()
+                            .show()
+                    }
+                }
             }
         }
     }

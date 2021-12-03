@@ -24,7 +24,9 @@
         <meta-data
             android:name="com.google.android.wearable.standalone"
             android:value="true" />
-
+        <activity
+            android:name=".ChatActivity"
+            android:label="ChatActivity"/>
         <activity
             android:name=".Avtorization"
             android:label="@string/title_activity_avtorization">
